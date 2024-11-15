@@ -7,7 +7,7 @@ const HDRLogger = std.log.scoped(.HDR);
 pub const HDRParserError = error{
     NotHDRFile,
     InvalidDataFormat,
-} | std.mem.Allocator.Error | std.io.AnyReader.Error | std.fmt.ParseIntError;
+} || std.mem.Allocator.Error || std.io.AnyReader.Error || std.fmt.ParseIntError;
 
 pub const HDRImage = struct {
     width: u32,
@@ -79,6 +79,7 @@ fn parsePixelData(allocator: std.mem.Allocator, reader: std.io.AnyReader, width:
     var i: u32 = 0;
 
     for (0..@intCast(height)) |y| {
+        std.log.info("{} / {}", .{ y, height });
         const rleLineMarker = try reader.readStruct(RGBE);
         if (!rleLineMarker.isRLE(width)) return error.InvalidDataFormat;
 
@@ -156,6 +157,12 @@ pub fn parseFromFilePath(allocator: std.mem.Allocator, filepath: []const u8) !HD
     defer file.close();
 
     return parse(allocator, file.reader().any());
+}
+
+pub fn parseFromMemory(allocator: std.mem.Allocator, content: []const u8) !HDRImage {
+    var stream = std.io.StreamSource{ .const_buffer = std.io.fixedBufferStream(content) };
+
+    return parse(allocator, stream.reader().any());
 }
 
 pub fn releaseImage(allocator: std.mem.Allocator, img: *HDRImage) void {
